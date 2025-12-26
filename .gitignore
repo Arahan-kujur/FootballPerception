@@ -1,0 +1,105 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Jupyter Notebook
+.ipynb_checkpoints
+*.ipynb_checkpoints/
+
+# Model weights (large files - users should download separately)
+weights/*.pt
+weights/*.pth
+weights/*.onnx
+!weights/.gitkeep
+
+# Output videos
+output/*.mp4
+output/*.avi
+output/*.mov
+!output/.gitkeep
+
+# Test videos (large files)
+test_videos/*.mp4
+test_videos/*.avi
+test_videos/*.mov
+!test_videos/.gitkeep
+
+# Logs
+*.log
+logs/
+
+# Environment variables
+.env
+.env.local
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# Data files
+data/
+datasets/
+*.csv
+*.json
+*.yaml
+!requirements.txt
+
+# Model checkpoints
+checkpoints/
+*.ckpt
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+
+# pytest
+.pytest_cache/
+.tox/
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+

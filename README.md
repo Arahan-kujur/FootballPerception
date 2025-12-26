@@ -1,17 +1,9 @@
 # Football Object Detection
-This project utilizes object detection algorithms to analyze football matches videos by finding the position of different objects on the football pitch and classifying them into 7 different classes:  
-0 - Player team left  
-1 - Player team right  
-2 - Goalkeeper team left  
-3 - Goalkeeper team right  
-4 - Ball  
-5 - Main referee  
-6 - Side referee  
-7 - Staff members  
+
+This project utilizes object detection and tracking algorithms to analyze football match videos by detecting and tracking players, goalkeepers, referees, and other objects on the football pitch. The system uses **track-level jersey color clustering** to assign stable team identities to players.
+
 ## Demo
 https://github.com/Mostafa-Nafie/Football-Object-Detection/assets/44211916/aaac347e-f21b-4433-841c-0cefea8770d2
-
-
 
 ## Quick Guide
 
@@ -20,7 +12,7 @@ https://github.com/Mostafa-Nafie/Football-Object-Detection/assets/44211916/aaac3
 ```
 git clone https://github.com/Mostafa-Nafie/Football-Object-Detection.git
 cd "./Football-Object-Detection"
-pip install requirements.txt
+pip install -r requirements.txt
 ```
 
 </details>
@@ -31,52 +23,124 @@ To run the model on a video, run the following command:
 ```
 python main.py /path/to/video
 ```
-The annotated video will be saved to "Football Object Detection/output" folder
+The annotated video will be saved to the `./output/` folder with the format `{video_name}_out.mp4`
 
 </details>
 
-## Object Detection model
-The model used for object detection is <a href=https://github.com/ultralytics/ultralytics>YOLOv8</a>, it was trained on <a href=https://drive.google.com/drive/folders/17w9yhEDZS7gLdZGjiwPQytLz3-iTUpKm>SoccerNet Dataset</a> for 25 epochs, to classify the objects into only 5 different classes:  
-0 - Player  
-1 - Goalkeeper  
-2 - Ball  
-3 - Main referee  
-4 - Side referee  
-5 - Staff members  
+## Object Detection Model
 
-## How it works ?  
-The model uses the **first frame** of the video to extract some important information by performing the following steps:  
-**1. Extracting the grass color**  
-It works by selecting only the green colors in the frame and masking out all other elements, then taking the average color of the non-maksed parts  
-![image](https://github.com/Mostafa-Nafie/Football-Object-Detection/assets/44211916/9369efee-4e1f-4650-b7d5-ddd69aaabd3b)
+The model used for object detection is [YOLOv8](https://github.com/ultralytics/ultralytics), trained on the [SoccerNet Dataset](https://drive.google.com/drive/folders/17w9yhEDZS7gLdZGjiwPQytLz3-iTUpKm) for 25 epochs. The model classifies objects into 6 different classes:
 
-**2. Finding the kit color of each one of the two teams**  
-This can be done by cutting the players boxes out of the image and then removing the grass from the background of each player and finally get the average color of the remaining pixels, which will be the player's kit color, then the K-Means clustering alogrithm will be used on the BGR values of the kits colors, so that each team's kits will be clustered together in one group, with its centroid representing the team's kit color for future comparisons.
-![image](https://github.com/Mostafa-Nafie/Football-Object-Detection/assets/44211916/a968a019-e9cf-4356-b8bb-493874c1c26d)
+- **0** - Player  
+- **1** - Goalkeeper  
+- **2** - Ball  
+- **3** - Main referee  
+- **4** - Side referee  
+- **5** - Staff members  
 
-To remvoe the grass color from each player's background, I filter out the region of colors around the grass color that we got in the first step in the HSV color space.
-![image](https://github.com/Mostafa-Nafie/Football-Object-Detection/assets/44211916/7afb7e27-97dd-42cb-9e12-421ef231a5b4)  
+## How It Works
 
-**3. Labeling each team as left or right**  
-To do this, I find the average position of each team's players on the x axis, and the team with the least average position value will be labeled as "Team Left" and the other one as "Team Right"
-![image](https://github.com/Mostafa-Nafie/Football-Object-Detection/assets/44211916/659fe1ec-2ae9-4a15-b109-302b3d2b0e71)  
+The system uses a **track-level team assignment approach** that provides stable and robust team identification. Here's how it works:
 
-For **every frame** of the video, the model operates as follows:  
-**1. Running YOLO model inference on the current frame**  
-The model classifies each object into one of the 5 classes  
-![image](https://github.com/Mostafa-Nafie/Football-Object-Detection/assets/44211916/3c5d2d05-4f85-4b0e-9389-c29d14aeb17d)
+### Overview
 
-**2. Finding the kit color of each player**  
-By using the same method as before, removing the grass background from the player's bounding box and getting the average color of the remaining pixels.  
+Instead of assigning teams per detection or frame, the system:
+1. Tracks players across frames using YOLOv8's built-in tracking
+2. Accumulates jersey color samples for each track over multiple frames
+3. Clusters tracks (not individual detections) to assign team identities
+4. Maintains stable team assignments throughout the video
 
-**3. Classifying each player into "team 0" or "team 1"**  
-This is done by finding out to which closest K-Means centroid (found in the first frame) to the player's kit color.
-![image](https://github.com/Mostafa-Nafie/Football-Object-Detection/assets/44211916/68a7d2c0-4d06-465a-a5dc-a7f1c8878b6e)
+### Step-by-Step Process
 
-**4. Labeling each team as "Left" or "Right"**  
-This is done by comparing the team's label (0 or 1) to the label of the "Team Left" found in the first frame
+#### **1. Object Detection and Tracking**
 
-**5. Labeling each Goalkeeper**
-The goalkeeper is labeled "GK Left" if he's found on the left hand side of the frame, and labeled "GK Right" otherwise.
+For each frame:
+- YOLOv8 performs object detection to identify players, goalkeepers, ball, referees, and staff
+- YOLOv8's tracking assigns stable **track IDs** to each player across frames
+- Each player maintains the same track_id throughout their appearance in the video
 
-Further explanation of the model can be found in the jupyter notebook.
+#### **2. Grass Color Extraction** (First Frame Only)
+
+From the first frame:
+- The system extracts the dominant grass color by:
+  - Converting the frame to HSV color space
+  - Masking green colors (typical grass range)
+  - Computing the average color of masked pixels
+- This grass color is used to isolate jersey colors from the background
+
+#### **3. Jersey Color Extraction** (Per Frame)
+
+For each player detection with a valid track_id:
+- The player's bounding box is cropped from the frame
+- Grass color is removed using HSV color filtering
+- The upper half of the player (jersey area) is focused on
+- The average jersey color (BGR) is extracted
+- **Color samples are accumulated per track_id** (not used immediately for team assignment)
+
+#### **4. Track-Level Color Accumulation**
+
+- Each track_id maintains a list of color samples collected over multiple frames
+- Only bounding boxes with sufficient area (>500 pixels) are used to ensure quality
+- Color samples are accumulated continuously as the video progresses
+
+#### **5. Track-Level Clustering** (After Sufficient Data)
+
+Once enough data is collected (typically after 30+ frames with at least 2 tracks):
+- **One representative color per track** is computed using the median of accumulated samples
+- **K-Means clustering (k=2)** is performed on track-level color vectors (not per-detection)
+- Each track is assigned to **TeamA** or **TeamB** based on clustering
+- The K-Means model is saved for assigning teams to new tracks
+
+#### **6. Team Assignment and Visualization**
+
+- **Stable Assignment**: Once a track is assigned to a team, it remains fixed
+- **New Tracks**: Tracks appearing after clustering are assigned based on their color's distance to cluster centroids
+- **Visualization**: Players are labeled as `"Player <track_id> | TeamA"` or `"Player <track_id> | TeamB"`
+- **Unknown Tracks**: Tracks with insufficient color evidence are labeled as `"Unknown"`
+
+### Key Advantages
+
+✅ **Stable Team Identity**: Team assignment is a property of track_id, not individual detections  
+✅ **Robust to Bad Frames**: One bad frame cannot flip a player's team  
+✅ **Camera Orientation Independent**: No dependency on x-position or left/right heuristics  
+✅ **Accurate**: Uses accumulated color samples over multiple frames for better accuracy  
+✅ **Real-time Compatible**: Efficient implementation suitable for video processing  
+
+### Technical Details
+
+- **Tracking**: Uses YOLOv8's built-in tracker with `persist=True` for stable track IDs
+- **Color Space**: BGR color space for jersey color representation
+- **Clustering**: K-Means with k=2, using median aggregation for robustness
+- **Minimum Samples**: Requires at least 3 color samples per track before clustering
+- **Frame Threshold**: Waits for 30 frames before performing initial clustering
+
+## Output Format
+
+The annotated video displays:
+- **Players**: `Player <track_id> | TeamA` or `Player <track_id> | TeamB`
+- **Goalkeepers**: `GK <track_id>`
+- **Other Objects**: `Ball`, `Main Ref`, `Side Ref`, `Staff`
+
+Each object is drawn with a colored bounding box and label.
+
+## Requirements
+
+- Python 3.7+
+- OpenCV
+- NumPy
+- Ultralytics YOLOv8
+- scikit-learn
+
+See `requirements.txt` for specific versions.
+
+## Documentation
+
+- **[Installation Guide](docs/INSTALLATION.md)** - Detailed installation instructions
+- **[Usage Guide](docs/USAGE.md)** - How to use the application and configure settings
+- **[Contributing](CONTRIBUTING.md)** - Guidelines for contributing to the project
+- **[Project Structure](PROJECT_STRUCTURE.md)** - Overview of the repository structure
+- **[Changelog](CHANGELOG.md)** - Version history and changes
+
+## Further Information
+
+Detailed explanation of the model, training process, and implementation can be found in the Jupyter notebook (`Football_Object_Detection.ipynb`).
