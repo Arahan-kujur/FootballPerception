@@ -58,13 +58,7 @@ The model weights are not included in the repository due to their size. You need
 
 ### 5. Verify Installation
 
-Test the installation by running:
-
-```bash
-python main.py --help
-```
-
-Or check if all dependencies are installed:
+Test the installation by checking if all dependencies are installed:
 
 ```bash
 python -c "import cv2, numpy, ultralytics, sklearn; print('All dependencies installed!')"

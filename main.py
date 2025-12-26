@@ -1,6 +1,8 @@
 import cv2
 import numpy as np
 import sys
+import os
+from pathlib import Path
 from ultralytics import YOLO
 from sklearn.cluster import KMeans
 
@@ -163,17 +165,43 @@ def annotate_video(video_path, model, labels, box_colors):
         box_colors: Dict mapping class index to color tuple
     Returns:
     """
+    # Check if video file exists
+    if not os.path.exists(video_path):
+        raise FileNotFoundError(f"Video file not found: {video_path}")
+    
     cap = cv2.VideoCapture(video_path)
+    
+    # Check if video opened successfully
+    if not cap.isOpened():
+        raise ValueError(f"Could not open video file: {video_path}")
 
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    
+    # Validate video dimensions
+    if height <= 0 or width <= 0:
+        cap.release()
+        raise ValueError(f"Invalid video dimensions: {width}x{height}")
 
-    video_name = video_path.split('/')[-1]
+    # Cross-platform path handling
+    video_path_obj = Path(video_path)
+    video_name = video_path_obj.stem  # Get filename without extension
+    
+    # Ensure output directory exists
+    output_dir = Path('./output')
+    output_dir.mkdir(exist_ok=True)
+    
+    output_path = output_dir / f"{video_name}_out.mp4"
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-    output_video = cv2.VideoWriter('./output/'+video_name.split('.')[0] + "_out.mp4",
+    output_video = cv2.VideoWriter(str(output_path),
                                    fourcc,
                                    30.0,
                                    (width, height))
+    
+    # Check if output video writer initialized successfully
+    if not output_video.isOpened():
+        cap.release()
+        raise RuntimeError(f"Could not initialize video writer for: {output_path}")
 
     # Track-level color accumulation: track_id -> list of color vectors
     track_color_samples = {}
@@ -335,21 +363,36 @@ def main():
     }
     
     video_path = sys.argv[1]
-    weights_path = "./weights/last.pt"
+    weights_path = Path("./weights/last.pt")
     
     # Check if weights file exists
-    import os
-    if not os.path.exists(weights_path):
+    if not weights_path.exists():
         print(f"Error: Model weights not found at {weights_path}")
         print("Please ensure the model weights are in the weights/ directory")
+        print("The file should be named 'last.pt'")
         sys.exit(1)
     
-    print(f"Loading model from {weights_path}...")
-    model = YOLO(weights_path)
-    
-    print(f"Processing video: {video_path}")
-    annotate_video(video_path, model, labels, box_colors)
-    print("Processing complete! Output saved to ./output/")
+    try:
+        print(f"Loading model from {weights_path}...")
+        model = YOLO(str(weights_path))
+        
+        print(f"Processing video: {video_path}")
+        annotate_video(video_path, model, labels, box_colors)
+        
+        output_path = Path("./output") / f"{Path(video_path).stem}_out.mp4"
+        print(f"Processing complete! Output saved to: {output_path.absolute()}")
+        
+    except FileNotFoundError as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+    except ValueError as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+    except Exception as e:
+        print(f"Unexpected error: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
